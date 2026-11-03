@@ -54,7 +54,39 @@ module SSHKit
         [self.class.config.ssh_path, *args, '--', String(host.hostname), command]
       end
 
+      # Same as Abstract#within, but with a directory check that survives
+      # Command#sanitize_command. Core's check is a multi-line heredoc, and
+      # sanitize_command splits commands on newlines and strips each line,
+      # which mangles directory names containing a newline or ending in a
+      # space. This check is one line, keeps the path away from the line's
+      # end, and spells newlines with a shell variable.
+      def within(directory, &_block)
+        (@pwd ||= []).push directory.to_s
+        execute directory_check(pwd_path), verbosity: Logger::DEBUG
+        yield
+      ensure
+        @pwd.pop
+      end
+
       private
+
+      def directory_check(path)
+        word = single_line_shell_word(path)
+        prelude = path.include?("\n") ? "nl=$(printf '\\nx'); nl=${nl%x}; " : ''
+        "#{prelude}if test ! -d #{word}; then " \
+          "printf \"Directory does not exist '%s'\\n\" #{word} 1>&2; false; fi"
+      end
+
+      # A shell word for +path+ with no literal newline in it. A leading
+      # ~ or ~user stays unquoted so the remote shell expands it, as with
+      # Command.shellescape_except_tilde.
+      def single_line_shell_word(path)
+        prefix = path[/\A~[\w.-]*(?=\/|\z)/] || ''
+        rest = path[prefix.length..-1]
+        quoted = rest.split("\n", -1).map { |part| part.empty? ? '' : Shellwords.escape(part) }.join('"$nl"')
+        word = prefix + quoted
+        word.empty? ? "''" : word
+      end
 
       def execute_command(cmd)
         output.log_command_start(cmd.with_redaction)

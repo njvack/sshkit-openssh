@@ -153,16 +153,35 @@ module SSHKit
         end
       end
 
-      # SSHKit core's Command#sanitize_command splits commands on newlines and
-      # strips each line, so within() breaks on directory names containing a
-      # newline or ending in a space, on every backend.
+      # Core's within() breaks on a newline or a trailing space in the
+      # directory name; OpenSSH overrides it, so every name is covered here.
       def test_odd_names_through_within
-        (ODD_NAMES - ["new\nline", 'trailing space ']).each do |name|
+        ODD_NAMES.each do |name|
           dir = File.join(@remote, "dir #{name}")
           FileUtils.mkdir_p(dir)
           on_backend { |b| b.within(dir) { b.upload! StringIO.new(name), 'f' } }
           assert_equal name.b, File.binread(File.join(dir, 'f')), "within #{name.inspect}"
         end
+      end
+
+      def test_within_odd_names_runs_commands_in_that_directory
+        ["new\nline", 'trailing space ', "both \n "].each do |name|
+          dir = File.join(@remote, name)
+          FileUtils.mkdir_p(dir)
+          pwd = on_backend { |b| b.within(dir) { b.capture(:pwd, strip: false) } }
+          assert_equal "#{dir}\n".b, pwd.b, "within #{name.inspect}"
+        end
+      end
+
+      def test_within_missing_directory_raises_with_path
+        missing = File.join(@remote, "no such\ndir ")
+        err = assert_raises(SSHKit::Command::Failed) { on_backend { |b| b.within(missing) { b.execute(:true) } } }
+        assert_includes err.message.b, "Directory does not exist '#{missing}'".b
+      end
+
+      def test_within_expands_tilde
+        home = on_backend { |b| b.within('~') { b.capture(:pwd) } }
+        assert_equal Dir.home, home
       end
 
       def test_transfers_never_use_a_pty
