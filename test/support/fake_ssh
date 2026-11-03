@@ -1,0 +1,5 @@
+#!/bin/sh
+# Stand-in for ssh in unit tests: ignores every option and runs the last
+# argument (the remote command) with sh, like sshd would.
+for last; do :; done
+exec sh -c "$last"
