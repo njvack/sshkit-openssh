@@ -44,6 +44,19 @@ module SSHKit
 
       include Transfers
 
+      # Raised when the backend is used on native Windows. Requiring the gem
+      # there is harmless, so a team can pick the backend per platform.
+      UnsupportedPlatformError = Class.new(SSHKit::StandardError)
+
+      def initialize(*)
+        if Gem.win_platform?
+          raise UnsupportedPlatformError,
+                'SSHKit::Backend::OpenSSH does not support native Windows (OpenSSH for Windows has no ' \
+                'ControlMaster support). Run Capistrano from WSL, or use SSHKit::Backend::Netssh.'
+        end
+        super
+      end
+
       # Full argv for running +command+ on this backend's host. Exposed for
       # testing and debugging. Transfers pass pty: false, since a pty would
       # mangle binary data.

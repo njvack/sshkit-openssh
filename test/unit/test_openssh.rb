@@ -129,6 +129,14 @@ module SSHKit
         OpenSSH.masters.close_all
       end
 
+      def test_refuses_native_windows
+        Gem.singleton_class.alias_method(:__real_win_platform?, :win_platform?)
+        Gem.define_singleton_method(:win_platform?) { true }
+        assert_raises(OpenSSH::UnsupportedPlatformError) { OpenSSH.new(host) }
+      ensure
+        Gem.singleton_class.alias_method(:win_platform?, :__real_win_platform?)
+      end
+
       def test_pty_uses_tt
         OpenSSH.config.idle_timeout = 0
         OpenSSH.config.pty = true

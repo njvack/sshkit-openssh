@@ -77,7 +77,7 @@ Other proxy types raise an error. `password`, `passphrase`, `key_data` and unkno
 - **`transfer_method: :scp/:sftp` and `preserve:`.** Transfers always use `cat`/`tar`.
 - **Project-local `.ssh/config`.** Netssh also reads `./.ssh/config`; this backend uses only what `ssh` reads (or `ssh_options[:config]`).
 - **Net::SSH-only options** such as `logger` or `agent_socket_factory`, which are ignored with a warning.
-- **Native Windows.** Win32-OpenSSH lacks ControlMaster. WSL works.
+- **Native Windows.** Win32-OpenSSH lacks ControlMaster, and the backend raises `UnsupportedPlatformError` when used there (requiring the gem is harmless, so `set :sshkit_backend, Gem.win_platform? ? SSHKit::Backend::Netssh : SSHKit::Backend::OpenSSH` works for mixed teams). Run Capistrano inside WSL instead: it is Linux, so everything above applies. Keep your Ruby, Bundler and keys on the WSL side (or bridge the Windows ssh-agent, e.g. with 1Password's WSL integration or npiperelay). Projects on `/mnt/c` are fine because control sockets live in `/tmp`.
 
 ## Tests
 
