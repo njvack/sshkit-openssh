@@ -69,15 +69,19 @@ Other proxy types raise an error. `password`, `passphrase`, `key_data` and unkno
 
 ## Not supported
 
-- Password and key-passphrase auth (use keys and ssh-agent)
-- `preserve:` on transfers
-- Native Windows
+- **Password, key passphrase and keyboard-interactive auth.** This is deliberate: OpenSSH reads these only from a terminal. Use keys, ssh-agent, or certificates. `password` and `passphrase` in `ssh_options` are ignored with a warning.
+- **`key_data`.** Write the key to a file and use `keys:`, or load it into ssh-agent.
+- **SOCKS and HTTP proxy objects.** `Net::SSH::Proxy::Jump` and `Command` work; other proxy classes raise. Use `ProxyCommand` in ssh_config for the rest.
+- **`transfer_method: :scp/:sftp` and `preserve:`.** Transfers always use `cat`/`tar`.
+- **Project-local `.ssh/config`.** Netssh also reads `./.ssh/config`; this backend uses only what `ssh` reads (or `ssh_options[:config]`).
+- **Net::SSH-only options** such as `logger` or `agent_socket_factory`, which are ignored with a warning.
+- **Native Windows.** Win32-OpenSSH lacks ControlMaster. WSL works.
 
 ## Tests
 
 ```sh
-bundle exec rake test:units
-SSHKIT_OPENSSH_TEST_HOST=deployer@127.0.0.1:2122 SSHKIT_OPENSSH_TEST_KEY=~/.ssh/test_key bundle exec rake test:functional
+bundle exec rake test:units    # no network; uses a fake ssh that runs commands locally
+bundle exec rake test:docker   # functional tests against a throwaway sshd container
 ```
 
-Functional tests need a reachable sshd whose user has passwordless sudo.
+`test:docker` builds `test/docker/Dockerfile` with a generated key and publishes it on 127.0.0.1:2122 (override with `SSHKIT_OPENSSH_TEST_PORT`). To use your own server instead, set `SSHKIT_OPENSSH_TEST_HOST` (and optionally `SSHKIT_OPENSSH_TEST_KEY`) and run `rake test:functional`; the user needs passwordless sudo.
