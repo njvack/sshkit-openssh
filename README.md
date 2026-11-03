@@ -63,10 +63,15 @@ Net::SSH-style options (from `ssh_options`, Capistrano's `set :ssh_options`, and
 
 Other proxy types raise an error. `password`, `passphrase`, `key_data` and unknown options are ignored with a one-time warning.
 
-## Not yet supported
+## File transfers
 
-- `upload!` / `download!`
+`upload!` and `download!` run over the same connection as commands. Files and IO objects (such as `StringIO`) stream through `cat`; `recursive: true` directories go through `tar`. This needs `cat`, `tar` and `mkdir` on the remote host and does not use scp or sftp, so `transfer_method` is ignored. As with scp, a destination that is an existing directory receives the source under its own name. `download!` with no local path returns the contents as a String. Upload progress is logged at each `log_percent` step (default 10).
+
+## Not supported
+
 - Password and key-passphrase auth (use keys and ssh-agent)
+- `preserve:` on transfers
+- Native Windows
 
 ## Tests
 

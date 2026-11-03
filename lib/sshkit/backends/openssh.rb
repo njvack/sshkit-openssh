@@ -3,6 +3,7 @@ require 'sshkit'
 require_relative 'openssh/configuration'
 require_relative 'openssh/option_mapper'
 require_relative 'openssh/control_master'
+require_relative 'openssh/transfers'
 
 module SSHKit
   module Backend
@@ -18,6 +19,7 @@ module SSHKit
     #   set :sshkit_backend, SSHKit::Backend::OpenSSH
     class OpenSSH < Abstract
       ConnectionError = Class.new(SSHKit::StandardError)
+      TransferError = Class.new(SSHKit::StandardError)
 
       # ssh exits 255 when it fails itself, and when the remote command is
       # killed by a signal or exits 255 on its own.
@@ -40,12 +42,15 @@ module SSHKit
 
       at_exit { OpenSSH.masters.close_all }
 
+      include Transfers
+
       # Full argv for running +command+ on this backend's host. Exposed for
-      # testing and debugging.
-      def ssh_argv(command)
+      # testing and debugging. Transfers pass pty: false, since a pty would
+      # mangle binary data.
+      def ssh_argv(command, pty: self.class.config.pty)
         args = connection_args
         args += master ? ['-S', master.socket_path, '-o', 'ControlMaster=no'] : ['-o', 'ControlPath=none']
-        args << (self.class.config.pty ? '-tt' : '-T')
+        args << (pty ? '-tt' : '-T')
         [self.class.config.ssh_path, *args, '--', String(host.hostname), command]
       end
 

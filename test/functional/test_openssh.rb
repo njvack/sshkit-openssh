@@ -105,6 +105,32 @@ module SSHKit
         refute File.exist?(File.dirname(socket))
       end
 
+      def test_upload_and_download_round_trip
+        require 'tmpdir'
+        Dir.mktmpdir do |local|
+          bytes = Random.new(2).bytes(500_000)
+          File.binwrite(File.join(local, 'blob'), bytes)
+          FileUtils.mkdir_p(File.join(local, 'tree', 'sub'))
+          File.write(File.join(local, 'tree', 'sub', 'leaf.txt'), 'leaf')
+          remote = "/tmp/sshkit-openssh-test-#{Process.pid}"
+          backend = OpenSSH.new(a_host)
+          begin
+            backend.execute(:mkdir, '-p', remote)
+            backend.upload!(StringIO.new("#!/bin/sh\necho wrapper\n"), "#{remote}/wrapper.sh")
+            backend.upload!(File.join(local, 'blob'), remote)
+            backend.upload!(File.join(local, 'tree'), remote, recursive: true)
+            assert_equal "#!/bin/sh\necho wrapper\n", backend.download!("#{remote}/wrapper.sh")
+            assert_equal 'leaf', backend.capture(:cat, "#{remote}/tree/sub/leaf.txt")
+            backend.download!("#{remote}/blob", File.join(local, 'blob.back'))
+            assert_equal bytes, File.binread(File.join(local, 'blob.back'))
+            backend.download!("#{remote}/tree", File.join(local, 'tree.back'), recursive: true)
+            assert_equal 'leaf', File.read(File.join(local, 'tree.back', 'sub', 'leaf.txt'))
+          ensure
+            backend.execute(:rm, '-rf', remote)
+          end
+        end
+      end
+
       private
 
       def run_on_capture(&block)
