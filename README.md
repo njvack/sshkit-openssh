@@ -8,8 +8,10 @@ Status: proof of concept. Linux and macOS only; native Windows is not supported 
 
 ```ruby
 # Gemfile
-gem 'sshkit-openssh', github: 'njvack/sshkit-openssh'
+gem 'sshkit-openssh', github: 'njvack/sshkit-openssh', tag: 'v0.1.0'
 ```
+
+It is not published on rubygems.org yet; Bundler installs it from GitHub. Drop `tag:` to track `main`.
 
 Capistrano:
 
