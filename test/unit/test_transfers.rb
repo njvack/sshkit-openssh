@@ -123,6 +123,48 @@ module SSHKit
         assert_raises(OpenSSH::TransferError) { on_backend { |b| b.download! missing } }
       end
 
+      ODD_NAMES = [
+        'with space', "single'quote", 'double"quote', '$HOME', 'back`tick`', '-leading-dash',
+        'semi;colon', 'glob*?[x]', 'ünïcödé', "new\nline", 'trailing space ', '~tilde'
+      ].freeze
+
+      def test_odd_filenames_round_trip
+        ODD_NAMES.each do |name|
+          src = File.join(@local, name)
+          write(src, "content of #{name}")
+          on_backend { |b| b.upload! src, @remote }
+          assert_equal "content of #{name}".b, File.binread(File.join(@remote, name)), "upload of #{name.inspect}"
+          back = File.join(@local, 'back')
+          FileUtils.mkdir_p(back)
+          on_backend { |b| b.download! File.join(@remote, name), back }
+          assert_equal "content of #{name}".b, File.binread(File.join(back, name)), "download of #{name.inspect}"
+          assert_equal "content of #{name}".b, on_backend { |b| b.download! File.join(@remote, name) }.b
+        end
+      end
+
+      def test_odd_directory_names_round_trip_recursively
+        ODD_NAMES.each do |name|
+          src = File.join(@local, 'up', name)
+          write(File.join(src, 'inner file'), name)
+          on_backend { |b| b.upload! src, @remote, recursive: true }
+          assert_equal name.b, File.binread(File.join(@remote, name, 'inner file')), "recursive upload of #{name.inspect}"
+          on_backend { |b| b.download! File.join(@remote, name), @local, recursive: true }
+          assert_equal name.b, File.binread(File.join(@local, name, 'inner file')), "recursive download of #{name.inspect}"
+        end
+      end
+
+      # SSHKit core's Command#sanitize_command splits commands on newlines and
+      # strips each line, so within() breaks on directory names containing a
+      # newline or ending in a space, on every backend.
+      def test_odd_names_through_within
+        (ODD_NAMES - ["new\nline", 'trailing space ']).each do |name|
+          dir = File.join(@remote, "dir #{name}")
+          FileUtils.mkdir_p(dir)
+          on_backend { |b| b.within(dir) { b.upload! StringIO.new(name), 'f' } }
+          assert_equal name.b, File.binread(File.join(dir, 'f')), "within #{name.inspect}"
+        end
+      end
+
       def test_transfers_never_use_a_pty
         OpenSSH.config.pty = true
         argv = on_backend { |b| b.ssh_argv('cat', pty: false) }

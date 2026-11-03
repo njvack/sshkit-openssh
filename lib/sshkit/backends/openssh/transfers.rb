@@ -80,7 +80,8 @@ module SSHKit
           command = "if [ -d #{target} ]; then tar -C #{target} -xf -; " \
                     "else mkdir -p #{target} && tar -C #{target} --strip-components=1 -xf -; fi"
           info "Uploading #{local} to #{remote}"
-          IO.popen(['tar', '-C', File.dirname(local), '-cf', '-', File.basename(local)], 'rb') do |tar|
+          # `--` keeps a name like "-x" from being read as an option.
+          IO.popen(['tar', '-C', File.dirname(local), '-cf', '-', '--', File.basename(local)], 'rb') do |tar|
             run_transfer(command, "upload of #{local} to #{remote}", input: tar)
           end
           raise TransferError, "local tar of #{local} failed" unless $?.success?
@@ -98,7 +99,7 @@ module SSHKit
           tar = ['tar', '-C', local, '-xf', '-']
           tar.insert(3, '--strip-components=1') unless into_existing
           info "Downloading #{remote} to #{local}"
-          command = "tar -C #{escape(File.dirname(remote))} -cf - #{escape(File.basename(remote))}"
+          command = "tar -C #{escape(File.dirname(remote))} -cf - -- #{escape(File.basename(remote))}"
           IO.popen(tar, 'wb') do |untar|
             run_transfer(command, "download of #{remote}", sink: untar)
           end
