@@ -41,6 +41,28 @@ end
 
 Per-host raw arguments can go in `ssh_options[:openssh_args]`.
 
+## ssh_options mapping
+
+Net::SSH-style options (from `ssh_options`, Capistrano's `set :ssh_options`, and per-server options) are translated to `ssh` flags. Options you do not set produce no flags, so your ssh_config decides.
+
+| Net::SSH option | ssh |
+| --- | --- |
+| `user`, `port`, `keys` | `-l`, `-p`, `-i` |
+| `keys_only`, `forward_agent`, `compression`, `non_interactive`, `check_host_ip` | `IdentitiesOnly`, `ForwardAgent`, `Compression`, `BatchMode`, `CheckHostIP` |
+| `encryption`, `hmac`, `kex`, `host_key`, `auth_methods` | `Ciphers`, `MACs`, `KexAlgorithms`, `HostKeyAlgorithms`, `PreferredAuthentications` |
+| `host_key_alias`, `host_name`, `bind_address`, `number_of_password_prompts`, `rekey_limit` | same names |
+| `timeout` / `connection_timeout` | `ConnectTimeout` |
+| `keepalive`, `keepalive_interval`, `keepalive_maxcount` | `ServerAliveInterval`, `ServerAliveCountMax` |
+| `verify_host_key` / `paranoid` | `StrictHostKeyChecking` (`:never` also sets `UserKnownHostsFile=/dev/null`) |
+| `user_known_hosts_file`, `global_known_hosts_file` | same names |
+| `use_agent: false` | `IdentityAgent=none` |
+| `send_env` (simple regexps), `set_env` | `SendEnv`, `SetEnv` |
+| `proxy: Net::SSH::Proxy::Jump` / `Command` | `ProxyJump` / `ProxyCommand` |
+| `config: false` / path | `-F /dev/null` / `-F path` |
+| `verbose` | `LogLevel` (default `ERROR`) |
+
+Other proxy types raise an error. `password`, `passphrase`, `key_data` and unknown options are ignored with a one-time warning.
+
 ## Not yet supported
 
 - `upload!` / `download!`
