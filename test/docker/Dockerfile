@@ -2,7 +2,7 @@
 # throwaway key and copies its public half here as authorized_keys.
 FROM ubuntu:24.04
 RUN apt-get update \
- && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server sudo \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server rsync sudo \
  && rm -rf /var/lib/apt/lists/*
 RUN useradd -m -s /bin/bash deployer \
  && echo "deployer ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/deployer \

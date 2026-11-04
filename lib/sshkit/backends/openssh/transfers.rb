@@ -21,6 +21,8 @@ module SSHKit
           master&.ensure_started!
           if local.respond_to?(:read)
             upload_io(local, remote, nil, options)
+          elsif rsync?
+            rsync_upload(local.to_s, remote, options)
           elsif options[:recursive] && File.directory?(local)
             upload_directory(local.to_s, remote)
           else
@@ -39,6 +41,9 @@ module SSHKit
           elsif local.respond_to?(:write)
             download_to(remote, local, remote)
             true
+          elsif rsync?
+            rsync_download(remote, local.to_s, options)
+            true
           elsif options[:recursive]
             download_directory(remote, local.to_s)
             true
@@ -50,6 +55,10 @@ module SSHKit
         end
 
         private
+
+        def rsync?
+          self.class.config.transfer_method == :rsync
+        end
 
         def absolute_remote(remote)
           remote = remote.to_s

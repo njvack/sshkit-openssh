@@ -106,6 +106,18 @@ module SSHKit
       end
 
       def test_upload_and_download_round_trip
+        round_trip
+      end
+
+      def test_rsync_upload_and_download_round_trip
+        OpenSSH.config.transfer_method = :rsync
+        round_trip
+        assert_match(/Uploading blob 100%/, @output)
+      end
+
+      private
+
+      def round_trip
         require 'tmpdir'
         Dir.mktmpdir do |local|
           bytes = Random.new(2).bytes(500_000)
@@ -130,8 +142,6 @@ module SSHKit
           end
         end
       end
-
-      private
 
       def run_on_capture(&block)
         result = nil
