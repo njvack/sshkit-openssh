@@ -28,21 +28,22 @@ module SSHKit
       end
 
       # An rsync that claims to be +version+, logs its arguments, and runs
-      # the real rsync.
-      def fake_rsync(version_line)
+      # the real rsync (or exits 0 without it, with run: false, since the
+      # real one may not take the options the claimed version gets).
+      def fake_rsync(version_line, run: true)
         real = `sh -c 'command -v rsync'`.strip
         log = File.join(@bin, 'args')
         path = script('rsync', <<~SH)
           if [ "$1" = --version ]; then echo '#{version_line}'; exit 0; fi
           printf '%s\\n' "$@" > '#{log}'
-          exec '#{real}' "$@"
+          #{run ? %(exec '#{real}' "$@") : 'exit 0'}
         SH
         OpenSSH.config.rsync_path = path
         log
       end
 
       def test_uses_rsync_through_our_ssh_command
-        log = fake_rsync('rsync  version 3.2.7  protocol version 31')
+        log = fake_rsync('rsync  version 3.2.7  protocol version 31', run: false)
         src = File.join(@local, 'f')
         write(src, 'x')
         on_backend { |b| b.upload! src, @remote }
@@ -53,7 +54,6 @@ module SSHKit
         assert shell.end_with?(' -T --'), shell
         assert_includes args, '--no-recursive'
         assert_includes args, '--info=progress2'
-        assert_equal 'x', File.read(File.join(@remote, 'f'))
       end
 
       def test_shares_the_control_master
