@@ -26,12 +26,38 @@ module SSHKit
         # Net::SSH-style options; translated to ssh flags by OptionMapper.
         attr_writer :ssh_options
 
+        TRANSFER_METHODS = %i[stream rsync].freeze
+
+        # :stream (the default) sends upload!/download! through cat and tar.
+        # :rsync uses rsync over the same connection for transfers between
+        # paths; IO objects still stream.
+        attr_reader :transfer_method
+
+        # Path to the local rsync binary, for transfer_method :rsync.
+        attr_accessor :rsync_path
+
+        # Arguments passed to every rsync, before the paths. upload! and
+        # download! add --recursive or --no-recursive themselves.
+        attr_accessor :rsync_args
+
         def initialize
           @pty = false
           @connection_timeout = nil
           @ssh_path = 'ssh'
           @ssh_args = []
           @idle_timeout = 30
+          @transfer_method = :stream
+          @rsync_path = 'rsync'
+          @rsync_args = ['-a']
+        end
+
+        def transfer_method=(method)
+          method = method.to_sym
+          unless TRANSFER_METHODS.include?(method)
+            raise ArgumentError, "transfer_method must be one of #{TRANSFER_METHODS.map(&:inspect).join(', ')}"
+          end
+
+          @transfer_method = method
         end
 
         def ssh_options

@@ -4,6 +4,7 @@ require_relative 'openssh/configuration'
 require_relative 'openssh/option_mapper'
 require_relative 'openssh/control_master'
 require_relative 'openssh/transfers'
+require_relative 'openssh/rsync'
 
 module SSHKit
   module Backend
@@ -43,6 +44,7 @@ module SSHKit
       at_exit { OpenSSH.masters.close_all }
 
       include Transfers
+      include RsyncTransfers
 
       # Raised when the backend is used on native Windows. Requiring the gem
       # there is harmless, so a team can pick the backend per platform.
@@ -61,10 +63,16 @@ module SSHKit
       # testing and debugging. Transfers pass pty: false, since a pty would
       # mangle binary data.
       def ssh_argv(command, pty: self.class.config.pty)
+        [*ssh_prefix(pty: pty), String(host.hostname), command]
+      end
+
+      # ssh and its options, ending with `--`; the destination and command
+      # come next. rsync's `-e` uses this too.
+      def ssh_prefix(pty: false)
         args = connection_args
         args += master ? ['-S', master.socket_path, '-o', 'ControlMaster=no'] : ['-o', 'ControlPath=none']
         args << (pty ? '-tt' : '-T')
-        [self.class.config.ssh_path, *args, '--', String(host.hostname), command]
+        [self.class.config.ssh_path, *args, '--']
       end
 
       # Same as Abstract#within, but with a directory check that survives
